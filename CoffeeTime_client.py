@@ -13,14 +13,23 @@ import socket
 import sys
 import ipaddress
 import threading
+from pystray import Icon as icon, Menu as menu, MenuItem as item
+from PIL import Image
 
 DEBUG = True
 if(DEBUG):
     def dprint(*args, **kwargs):
         print(*args, **kwargs)
 
+### Global variables
 IP = ""
 PORT = 5169
+
+###Exit Handler ###
+def Exit_IRQHandle(icon, item):
+    socket_client.close()
+    icon.stop()
+    sys.exit(0)
 
 ### Network scanner ###
 # WORKER
@@ -58,7 +67,10 @@ def Toast_Display():
     toast('COFFEE TIME !', '', image=PATH_ICO )
 
 
+
 if __name__ == "__main__":
+    global socket_client
+
     # Create client socket.
     socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     dprint("[CLIENT] > Client socket created.")
@@ -75,9 +87,13 @@ if __name__ == "__main__":
         dprint("[CLIENT] ERROR : ", msg)
         dprint("[CLIENT] > Shutdown")
         sys.exit(1)
-
     dprint("[CLIENT] > Client socket connected.")
 
+    IconTaskBar = icon('coffeetime', Image.open("./coffee_time.ico"), title="CoffeeTime", menu=menu(item('Exit', Exit_IRQHandle)))
+    IconTaskBar.run_detached()
+    dprint("[CLIENT] > Icon in notification task bar is launched.")
+
+    dprint("[CLIENT] > Start main loop.")
     while True:
         # Receive data from server socket.
         data = socket_client.recv(254).decode()
