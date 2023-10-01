@@ -27,7 +27,7 @@ else:
     def Button_test(socket):
         pass
 
-HOST = "192.168.1.66" # Standard loopback interface address (localhost)
+HOST = ""
 PORT = 5169  # Port to listen on (non-privileged ports are > 1023)
 
 SSID = "Maison_ALDO" 
@@ -67,6 +67,7 @@ def WLAN_Init():
         while not wlan.isconnected():
             pass
     dprint("[WLAN] > Network config : ", wlan.ifconfig())
+    return wlan.ifconfig()[0]
 
 def EXT_IRQHandler(pin):
     global BUTTON_isPressed, BUTTON_mutex
@@ -80,7 +81,7 @@ def GPIO_Init():
 
 if __name__ == "__main__":
     GPIO_Init() # Init GPIOs
-    WLAN_Init() # Conexion to network
+    HOST = WLAN_Init() # Conexion to network
 
     # Create server socket
     Socket_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
