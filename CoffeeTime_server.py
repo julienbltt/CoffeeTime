@@ -11,7 +11,7 @@ MàJ : 26/09/2023
 import socket
 import _thread
 
-from machine import Pin
+from machine import Pin, Timer
 import network
 
 DEBUG = True
@@ -36,9 +36,17 @@ KEY = "#Y2s&O-K,\"=qx7DL"
 ### GPIO ###
 BUTTON_PIN = 10
 
+### Timer ###
+timer1 = Timer(1)
+
 ### GLOBAL VARIABLE ###
 BUTTON_isPressed = False # FLAG
 BUTTON_mutex = _thread.allocate_lock() # Mutex of button state global variable.
+Timer_UpdateEvent = False
+
+def Timer1_IRQHandler(timer):
+    global Timer_UpdateEvent
+    Timer_UpdateEvent = True
 
 # Function thread client.
 def worker(*arg):
@@ -53,6 +61,7 @@ def worker(*arg):
             BUTTON_isPressed = False
             BUTTON_mutex.release()
             Socket_client.send("coffee-time".encode())
+            dprint("[SERVER] > Send toast notification.")
     
     Socket_client.close()
     
@@ -70,10 +79,15 @@ def WLAN_Init():
     return wlan.ifconfig()[0]
 
 def EXT_IRQHandler(pin):
-    global BUTTON_isPressed, BUTTON_mutex
-    BUTTON_mutex.acquire()
-    BUTTON_isPressed = True
-    BUTTON_mutex.release()
+    global BUTTON_isPressed, BUTTON_mutex, Timer_UpdateEvent
+    timer1.init(period=250, callback=Timer1_IRQHandler)
+    if Timer_UpdateEvent:
+        timer1.deinit()
+        Timer_UpdateEvent = False
+        
+        BUTTON_mutex.acquire()
+        BUTTON_isPressed = True
+        BUTTON_mutex.release()
 
 def GPIO_Init():
     button = Pin(BUTTON_PIN, Pin.IN)
