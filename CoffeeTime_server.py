@@ -40,9 +40,8 @@ BUTTON_PIN = 10
 timer1 = Timer(1)
 
 ### GLOBAL VARIABLE ###
-BUTTON_isPressed = False # FLAG
-BUTTON_mutex = _thread.allocate_lock() # Mutex of button state global variable.
 Timer_UpdateEvent = False
+SocketClient_Connected = []
 
 def Timer1_IRQHandler(timer):
     global Timer_UpdateEvent
@@ -50,22 +49,24 @@ def Timer1_IRQHandler(timer):
 
 # Function thread client.
 def worker(*arg):
-    global BUTTON_isPressed, BUTTON_mutex
-
+    global SocketClient_Connected
+    
     Socket_client = arg[0]
-    isConnect = True
-
-    while(isConnect):
-        if BUTTON_isPressed:
-            BUTTON_mutex.acquire()
-            BUTTON_isPressed = False
-            BUTTON_mutex.release()
-            Socket_client.send("coffee-time".encode())
-            dprint("[SERVER] > Send toast notification.")
+    
+    dprint("[SERVER] > Worker <", _thread.get_ident(), "> is up.")
+    
+    while(True):
+        try:
+            data = Socket_client.recv(254).decode()
+        except OSError:
+            break
+        if data == "end":
+            break
     
     Socket_client.close()
-    
-    _thread.exit(0)
+    SocketClient_Connected.remove(Socket_client)
+    dprint("[SERVER] > Worker <", _thread.get_ident(), "> is close.")
+    _thread.exit()
 
 def WLAN_Init():
     wlan = network.WLAN(network.STA_IF)
@@ -79,21 +80,22 @@ def WLAN_Init():
     return wlan.ifconfig()[0]
 
 def EXT_IRQHandler(pin):
-    global BUTTON_isPressed, BUTTON_mutex, Timer_UpdateEvent
+    global Timer_UpdateEvent, SocketClient_Connected
     timer1.init(period=250, callback=Timer1_IRQHandler)
     if Timer_UpdateEvent:
         timer1.deinit()
         Timer_UpdateEvent = False
         
-        BUTTON_mutex.acquire()
-        BUTTON_isPressed = True
-        BUTTON_mutex.release()
+        # Send a toat notification for all client connected
+        for socketclient in SocketClient_Connected:
+            socketclient.send("coffee-time".encode())
+        dprint("[SERVER] > Send toast notification.")
 
 def GPIO_Init():
     button = Pin(BUTTON_PIN, Pin.IN)
     button.irq(trigger=Pin.IRQ_RISING, handler=EXT_IRQHandler)
 
-if __name__ == "__main__":
+if __name__ == "__main__":    
     GPIO_Init() # Init GPIOs
     HOST = WLAN_Init() # Conexion to network
 
@@ -116,7 +118,9 @@ if __name__ == "__main__":
         dprint("[SERVER] > Client join server : ", end="")
         dprint("ADDR : ", Socket_ClientAddr[0], "; PORT : ", Socket_ClientAddr[1])
         
+        # Add socket client on list of connected
+        SocketClient_Connected.append(Socket_Client)
+        
         # Creat worker for client socket
-        Worker_threadId = _thread.start_new_thread(worker, (Socket_Client,))
-        dprint("[SERVER] > Worker ", Worker_threadId, " : is up.")
+        _thread.start_new_thread(worker, (Socket_Client,))
         
