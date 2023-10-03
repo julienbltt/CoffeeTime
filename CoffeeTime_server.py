@@ -30,8 +30,8 @@ else:
 HOST = ""
 PORT = 5169  # Port to listen on (non-privileged ports are > 1023)
 
-SSID = "Maison_ALDO" 
-KEY = "#Y2s&O-K,\"=qx7DL"
+SSID = "" 
+KEY = ""
 
 ### GPIO ###
 BUTTON_PIN = 10
